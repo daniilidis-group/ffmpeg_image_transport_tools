@@ -1,0 +1,13 @@
+<launch>
+  <arg name="output" default="screen"/>
+  <arg name="bag"/>
+
+  <!-- nodes -->
+  <node pkg="ffmpeg_image_transport_tools" type="decode_bag"
+    name="decode_bag" output="$(arg output)">
+    <param name="bag_file" type="string" value="$(arg bag)"/>
+    <rosparam param="image_topics">
+      ["/cam_sync/cam0/image_raw/ffmpeg"]
+    </rosparam>
+  </node>
+</launch>
