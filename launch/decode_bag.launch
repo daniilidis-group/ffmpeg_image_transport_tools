@@ -1,13 +1,43 @@
 <launch>
   <arg name="output" default="screen"/>
   <arg name="bag"/>
+#	launch-prefix="gdb -ex run --args"
 
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="decode_bag"
     name="decode_bag" output="$(arg output)">
     <param name="bag_file" type="string" value="$(arg bag)"/>
+    <!-- number of rows and columns in the output image -->
+    <param name="num_rows" type="int" value="2"/>
+    <param name="num_cols" type="int" value="4"/>
+    <param name="max_num_frames" type="int" value="50000"/>
+    <!--
+	assigment of camera numbers (in this example: 8 cameras)
+	to image locations. The image locations are numbered
+	0 ... num_rows * num_cols, and are layed out row major:
+	
+	  0, 1, 2, 3,
+	  4, 5, 6, 7
+
+        Then, the camera_to_location_map specifies in camera order
+	how they are assigned to an image slot. So the following map
+	will assign camera 0 to image location 4 (lower left corner),
+	camera 1 to image loation 5 (second from left, bottom row) etc
+	-->
+    <rosparam param="camera_to_location">
+      [ 4, 5, 1, 0,
+        6, 7, 3, 2]
+    </rosparam>
     <rosparam param="image_topics">
-      ["/cam_sync/cam0/image_raw/ffmpeg"]
+      ["/cam_sync/cam0/image_raw/ffmpeg",
+      "/cam_sync/cam1/image_raw/ffmpeg",
+      "/cam_sync/cam2/image_raw/ffmpeg",
+      "/cam_sync/cam3/image_raw/ffmpeg",
+      "/cam_sync/cam4/image_raw/ffmpeg",
+      "/cam_sync/cam5/image_raw/ffmpeg",
+      "/cam_sync/cam6/image_raw/ffmpeg",
+      "/cam_sync/cam7/image_raw/ffmpeg"
+      ]
     </rosparam>
   </node>
 </launch>
