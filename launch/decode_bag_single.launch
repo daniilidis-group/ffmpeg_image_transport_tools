@@ -1,17 +1,23 @@
 <launch>
-  <arg name="output" default="screen"/>
   <arg name="bag"/>
-  <arg name="output_file" default="raw.h265"/>
+  <arg name="output_file" default="raw_single.h265"/>
+  <arg name="camera" default="cam6"/>
+  <arg name="output" default="screen"/>
+  <arg name="output_dir" default="/archive-2/aviary/test_bags_fall_2018/2018-12-04/frames/$(arg camera)"/>
 
 #	launch-prefix="gdb -ex run --args"
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="decode_bag"
-	name="decode_bag" output="$(arg output)">
+	name="decode_bag_$(arg camera)" output="$(arg output)">
     <param name="bag_file" type="string" value="$(arg bag)"/>
     <param name="output_file" type="string" value="$(arg output_file)"/>
     <!-- number of rows and columns in the output image -->
-    <param name="num_rows" type="int" value="2"/>
-    <param name="num_cols" type="int" value="4"/>
+    <param name="num_rows" type="int" value="1"/>
+    <param name="keep_ratio" type="int" value="500"/>
+    <param name="base_file_name" value="$(arg output_dir)/frame"/>
+    <param name="write_frames" type="bool" value="true"/>
+    <param name="write_video" type="bool" value="false"/>
+    <param name="num_cols" type="int" value="1"/>
     <!-- will stop after max_num_frames -->
     <param name="max_num_frames" type="int" value="4000000"/>
     <!--
@@ -28,19 +34,10 @@
 	camera 1 to image loation 5 (second from left, bottom row) etc
 	-->
     <rosparam param="camera_to_location">
-      [ 4, 5, 1, 0,
-        6, 7, 3, 2]
+      [ 0 ]
     </rosparam>
     <rosparam param="image_topics">
-      ["/cam_sync/cam0/image_raw/ffmpeg",
-      "/cam_sync/cam1/image_raw/ffmpeg",
-      "/cam_sync/cam2/image_raw/ffmpeg",
-      "/cam_sync/cam3/image_raw/ffmpeg",
-      "/cam_sync/cam4/image_raw/ffmpeg",
-      "/cam_sync/cam5/image_raw/ffmpeg",
-      "/cam_sync/cam6/image_raw/ffmpeg",
-      "/cam_sync/cam7/image_raw/ffmpeg"
-      ]
+      [/cam_sync/cam6/image_raw/ffmpeg]
     </rosparam>
   </node>
 </launch>
