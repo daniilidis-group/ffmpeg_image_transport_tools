@@ -241,10 +241,11 @@ namespace ffmpeg_image_transport_tools {
     rosbag::Bag bag;
     bag.open(fname, rosbag::bagmode::Read);
     std::vector<std::string> topics = imageTopics_;
+    std::vector<std::vector<std::string>> tpvec = {topics};
     std::string all_topics_string;
     ImageSync::Callback cb = std::bind(&DecodeBag::syncCallback,
                                        this, std::placeholders::_1);
-    sync_.reset(new ImageSync(topics, cb));
+    sync_.reset(new ImageSync(tpvec, cb));
     for (const auto &topic: topics) {
       rosbag::View cv(bag, rosbag::TopicQuery({topic}));
       if (cv.begin() == cv.end()) {
