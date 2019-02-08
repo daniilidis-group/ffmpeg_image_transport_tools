@@ -1,0 +1,25 @@
+<launch>
+  <arg name="output" default="screen"/>
+  <arg name="bag"/>
+  <arg name="out_file_base" default="video_"/>
+
+  <!-- nodes -->
+  <node pkg="ffmpeg_image_transport_tools" type="split_bag"
+	name="split_bag" output="$(arg output)">
+    <param name="bag_file" type="string" value="$(arg bag)"/>
+    <param name="out_file_base" type="string" value="$(arg out_file_base)"/>
+    <!-- will stop after max_num_frames -->
+    <param name="max_num_frames" type="int" value="10000000"/>
+    <rosparam param="image_topics">
+      ["/cam_sync/cam0/image_raw/ffmpeg",
+      "/cam_sync/cam1/image_raw/ffmpeg",
+      "/cam_sync/cam2/image_raw/ffmpeg",
+      "/cam_sync/cam3/image_raw/ffmpeg",
+      "/cam_sync/cam4/image_raw/ffmpeg",
+      "/cam_sync/cam5/image_raw/ffmpeg",
+      "/cam_sync/cam6/image_raw/ffmpeg",
+      "/cam_sync/cam7/image_raw/ffmpeg"
+      ]
+    </rosparam>
+  </node>
+</launch>

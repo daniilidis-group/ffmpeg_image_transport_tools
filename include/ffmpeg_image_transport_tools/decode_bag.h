@@ -32,11 +32,15 @@ namespace ffmpeg_image_transport_tools {
   public:
     class CopyThread {
     public:
-      CopyThread(const cv::Mat &dest);
+      CopyThread(const cv::Mat &dest, int camNum,
+                 const std::string &baseDir, int keepRatio,
+                 bool writeFrame);
       ~CopyThread();
-      inline void startCopy(const ImageConstPtr &msg) {
+      inline void startCopy(const ImageConstPtr &msg,
+                            unsigned int fnum) {
         std::unique_lock<std::mutex> lock(mutex_);
         msgToCopy_ = msg;
+        frameNum_  = fnum;
         cv_.notify_all();
       }
       inline void waitForCopyComplete() {
@@ -52,6 +56,11 @@ namespace ffmpeg_image_transport_tools {
       std::condition_variable cv_;
       bool                    threadStopSignaled_{false};
       ImageConstPtr           msgToCopy_;
+      std::string             frameBaseName_;
+      int                     cameraNumber_{0};
+      unsigned int            frameNum_{0};
+      bool                    writeFrames_{false};
+      int                     keepRatio_{1};
       cv::Mat                 dest_;
       boost::shared_ptr<boost::thread> thread_;
     };
@@ -83,6 +92,9 @@ namespace ffmpeg_image_transport_tools {
     void processBag(const std::string &fname);
     void packetReady(const FFMPEGPacketConstPtr &pkt);
     void startCopyThreads(int w, int h, int size);
+    void writeAuxFile();
+    void writeVideoFrame(const cv::Mat &img, const std_msgs::Header &header);
+
     // ------------------------ variables --------
     ros::NodeHandle   nh_;
     typedef std::shared_ptr<Session> SessionPtr;
@@ -96,13 +108,21 @@ namespace ffmpeg_image_transport_tools {
     cv::Mat       fullImg_;
     unsigned int  frameNum_{0};
     int           maxNumFrames_;
+    int           numFramesInserted_{0};
+    ros::Duration framePeriod_{ros::Duration(0)};
+    ros::Duration minFrameDiff_;
+    ros::Time     firstTime_{ros::Time(0)};
+    ros::Time     lastTime_{ros::Time(0)};
     std::vector<int>  cameraToLocation_;
     std::vector<std::string> imageTopics_;
     std::ofstream rawStream_;
     bool          writeFrames_{false};
+    bool          writeIndividualFrames_{false};
     bool          writeVideo_{false};
-    int           keepRatio_{100};
-    std::string   baseName_;
+    int           keepRatio_{1};
+    std::string   frameBaseDir_;
+    std::string   frameBaseName_;
+    std::string   videoBaseName_;
   };
 
 }

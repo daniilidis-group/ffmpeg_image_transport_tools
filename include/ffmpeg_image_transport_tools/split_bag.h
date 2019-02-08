@@ -1,0 +1,53 @@
+/* -*-c++-*--------------------------------------------------------------------
+ * 2019 Bernd Pfrommer bernd.pfrommer@gmail.com
+ */
+
+#pragma once
+
+#include <ffmpeg_image_transport_msgs/FFMPEGPacket.h>
+
+#include <rosbag/bag.h>
+#include <ros/ros.h>
+
+#include <fstream>
+#include <vector>
+#include <memory>
+#include <unordered_map>
+
+namespace ffmpeg_image_transport_tools {
+  class SplitBag {
+    using FFMPEGPacket  = ffmpeg_image_transport_msgs::FFMPEGPacket;
+    using FFMPEGPacketConstPtr = FFMPEGPacket::ConstPtr;
+  public:
+    class Session {
+    public:
+      Session(const std::string &topic, const std::string &base,
+              unsigned int idx);
+      ~Session();
+      void process(const FFMPEGPacketConstPtr &msg);
+    private:
+      // --------- variables
+      std::string             topic_;
+      std::ofstream           rawStream_;
+    };
+    
+    SplitBag(const ros::NodeHandle& pnh);
+    ~SplitBag();
+    bool initialize();
+  private:
+    void makeSessions(rosbag::Bag *bag);
+    void processBag(const std::string &fname);
+
+    // ------------------------ variables --------
+    ros::NodeHandle   nh_;
+    typedef std::shared_ptr<Session> SessionPtr;
+    typedef std::unordered_map<std::string, SessionPtr> SessionMap;
+    SessionMap    sessions_;
+    std::string   outFileBase_;
+    unsigned int  frameNum_{0};
+    int           maxNumFrames_;
+    std::vector<std::string> imageTopics_;
+  };
+
+}
+

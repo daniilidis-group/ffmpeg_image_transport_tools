@@ -1,19 +1,25 @@
 <launch>
-  <arg name="output" default="screen"/>
   <arg name="bag"/>
-  <arg name="output_file" default="raw.h265"/>
+  <arg name="out_file_dir"/>
+  <arg name="write_frames" default="false"/>
+  <arg name="write_individual_frames" default="false"/>
+  <arg name="keep_ratio" default="1"/>
 
 #	launch-prefix="gdb -ex run --args"
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="decode_bag"
-	name="decode_bag" output="$(arg output)">
+	name="decode_bag_single" output="screen">
     <param name="bag_file" type="string" value="$(arg bag)"/>
-    <param name="output_file" type="string" value="$(arg output_file)"/>
+    <param name="frame_base_dir" value="$(arg out_file_dir)/frames"/>
+    <param name="video_base_name" value="$(arg out_file_dir)/video_full"/>
+    <param name="keep_ratio" value="$(arg keep_ratio)"/>
+    <param name="write_frames" value="$(arg write_frames)"/>
+    <param name="write_individual_frames" value="$(arg write_individual_frames)"/>
     <!-- number of rows and columns in the output image -->
     <param name="num_rows" type="int" value="2"/>
     <param name="num_cols" type="int" value="4"/>
     <!-- will stop after max_num_frames -->
-    <param name="max_num_frames" type="int" value="4000000"/>
+    <param name="max_num_frames" type="int" value="40000000"/>
     <!--
 	assigment of camera numbers (in this example: 8 cameras)
 	to image locations. The image locations are numbered
@@ -22,14 +28,14 @@
 	  0, 1, 2, 3,
 	  4, 5, 6, 7
 
-        Then, the camera_to_location_map specifies in camera order
+        Then, the location_to_camera map specifies in camera order
 	how they are assigned to an image slot. So the following map
 	will assign camera 0 to image location 4 (lower left corner),
 	camera 1 to image loation 5 (second from left, bottom row) etc
 	-->
-    <rosparam param="camera_to_location">
-      [ 4, 5, 1, 0,
-        6, 7, 3, 2]
+    <rosparam param="location_to_camera">
+      [ 3, 2, 7, 6,
+        0, 1, 4, 5]
     </rosparam>
     <rosparam param="image_topics">
       ["/cam_sync/cam0/image_raw/ffmpeg",
@@ -42,5 +48,6 @@
       "/cam_sync/cam7/image_raw/ffmpeg"
       ]
     </rosparam>
+    
   </node>
 </launch>

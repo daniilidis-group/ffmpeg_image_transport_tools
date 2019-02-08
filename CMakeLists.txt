@@ -20,7 +20,11 @@ include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS})
 
-# add the plugin
+# add the executables
 add_executable(decode_bag src/decode_bag.cpp src/decode_bag_node.cpp)
 target_link_libraries(decode_bag ${catkin_LIBRARIES}
+)
+
+add_executable(split_bag src/split_bag.cpp src/split_bag_node.cpp)
+target_link_libraries(split_bag ${catkin_LIBRARIES}
 )
