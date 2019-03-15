@@ -148,6 +148,11 @@ namespace ffmpeg_image_transport_tools {
       ROS_WARN("empty image message!");
       return;
     }
+    if (!outBag_.getFileName().empty()) {
+      for (const auto i: irange(0ul, imageTopics_.size())) {
+        outBag_.write(imageTopics_[i], msgs[i]->header.stamp, msgs[i]);
+      }
+    }
     const auto &msg0 = msgs[0];
     const int w(msg0->width), h(msg0->height);
     if (w == 0 || h == 0) {
@@ -179,10 +184,12 @@ namespace ffmpeg_image_transport_tools {
   }
 
   bool DecodeBag::initialize() {
+    std::string outBagName;
     nh_.param<std::string>("frame_base_dir", frameBaseDir_, "frames");
     frameBaseName_ = frameBaseDir_ + "/frame_";
     nh_.param<std::string>("video_base_name",  videoBaseName_,  "video_");
     nh_.param<int>("keep_ratio",   keepRatio_, 100);
+    nh_.param<std::string>("out_bag_name",   outBagName, "");
     nh_.param<bool>("write_video",   writeVideo_, true);
     nh_.param<bool>("write_frames",  writeFrames_, false);
     nh_.param<bool>("write_individual_frames",
@@ -193,6 +200,10 @@ namespace ffmpeg_image_transport_tools {
     if (frameRate > 0) {
       framePeriod_  = ros::Duration(1.0  / frameRate);
       minFrameDiff_ = ros::Duration(1.25 / frameRate);
+    }
+    if (!outBagName.empty()) {
+      ROS_INFO_STREAM("writing to bag: " << outBagName);
+      outBag_.open(outBagName, rosbag::BagMode::Write);
     }
 
     if (writeVideo_) {
@@ -291,7 +302,7 @@ namespace ffmpeg_image_transport_tools {
     while (msgToDecode_ && ros::ok()) {
       cv_.wait(lock);
     }
-    msgToDecode_ = msg;
+    msgToDecode_ = msg; // enqueues message
     cv_.notify_all();
   }
 
@@ -354,6 +365,9 @@ namespace ffmpeg_image_transport_tools {
     bag.close();
     writeAuxFile();
     sessions_.clear(); // should collect threads
+    if (!outBag_.getFileName().empty()) {
+      outBag_.close();
+    }
   }
   
 }  // namespace

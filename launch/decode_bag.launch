@@ -4,22 +4,25 @@
   <arg name="write_frames" default="false"/>
   <arg name="write_individual_frames" default="false"/>
   <arg name="keep_ratio" default="1"/>
+  <arg name="out_bag" default=""/>
 
 #	launch-prefix="gdb -ex run --args"
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="decode_bag"
 	name="decode_bag_single" output="screen">
     <param name="bag_file" type="string" value="$(arg bag)"/>
+    <param name="out_bag_name" type="string" value="$(arg out_bag)"/>
     <param name="frame_base_dir" value="$(arg out_file_dir)/frames"/>
     <param name="video_base_name" value="$(arg out_file_dir)/video_full"/>
     <param name="keep_ratio" value="$(arg keep_ratio)"/>
     <param name="write_frames" value="$(arg write_frames)"/>
+    <param name="write_video" value="true"/>
     <param name="write_individual_frames" value="$(arg write_individual_frames)"/>
     <!-- number of rows and columns in the output image -->
     <param name="num_rows" type="int" value="2"/>
     <param name="num_cols" type="int" value="4"/>
     <!-- will stop after max_num_frames -->
-    <param name="max_num_frames" type="int" value="40000000"/>
+    <param name="max_num_frames" type="int" value="40"/>
     <!--
 	assigment of camera numbers (in this example: 8 cameras)
 	to image locations. The image locations are numbered

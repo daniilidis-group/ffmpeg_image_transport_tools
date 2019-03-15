@@ -119,6 +119,7 @@ namespace ffmpeg_image_transport_tools {
     bool          writeFrames_{false};
     bool          writeIndividualFrames_{false};
     bool          writeVideo_{false};
+    rosbag::Bag   outBag_;
     int           keepRatio_{1};
     std::string   frameBaseDir_;
     std::string   frameBaseName_;
