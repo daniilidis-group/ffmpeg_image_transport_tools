@@ -19,7 +19,7 @@
     <param name="num_rows" type="int" value="1"/>
     <param name="num_cols" type="int" value="1"/>
     <!-- will stop after max_num_frames -->
-    <param name="max_num_frames" type="int" value="40000000"/>
+    <param name="max_num_frames" type="int" value="100000000"/>
     <!--
 	assigment of camera numbers (for example: 8 cameras)
 	to image locations. The image locations are numbered

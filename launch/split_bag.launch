@@ -9,7 +9,7 @@
     <param name="bag_file" type="string" value="$(arg bag)"/>
     <param name="out_file_base" type="string" value="$(arg out_file_base)"/>
     <!-- will stop after max_num_frames -->
-    <param name="max_num_frames" type="int" value="10000000"/>
+    <param name="max_num_frames" type="int" value="1000000000"/>
     <rosparam param="image_topics">
       ["/cam_sync/cam0/image_raw/ffmpeg",
       "/cam_sync/cam1/image_raw/ffmpeg",
