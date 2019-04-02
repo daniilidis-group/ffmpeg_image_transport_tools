@@ -153,33 +153,38 @@ namespace ffmpeg_image_transport_tools {
         outBag_.write(imageTopics_[i], msgs[i]->header.stamp, msgs[i]);
       }
     }
-    const auto &msg0 = msgs[0];
-    const int w(msg0->width), h(msg0->height);
-    if (w == 0 || h == 0) {
-      ROS_WARN("image 0 not full size!");
-      return;
-    }
-    // allocate full image and start copying threads if
-    // necessary
-    if (fullImg_.rows == 0) {
-      fullImg_ = cv::Mat(h * numRows_, w * numCols_,  CV_8UC3);
-      startCopyThreads(w, h, (int)msgs.size());
-    }
-    // copy individual images into the full image
-    // This is a surprisingly slow process and therefore done in parallel
-    for (int i = 0; i < (int)msgs.size(); i++) {
-      copyThreads_[i]->startCopy(msgs[i], frameNum_);
-    }
-    for (int i = 0; i < (int)msgs.size(); i++) {
-      copyThreads_[i]->waitForCopyComplete();
-    }
-    if (writeFrames_ && (frameNum_ % keepRatio_ == 0)) {
-      cv::imwrite(make_file_name(frameBaseName_, frameNum_ / keepRatio_), fullImg_);
-    }
-    frameNum_++;
+    if (writeFrames_ || writeVideo_) {
+      const auto &msg0 = msgs[0];
+      const int w(msg0->width), h(msg0->height);
+      if (w == 0 || h == 0) {
+        ROS_WARN("image 0 not full size!");
+        return;
+      }
+      // allocate full image and start copying threads if
+      // necessary
+      if (fullImg_.rows == 0) {
+        fullImg_ = cv::Mat(h * numRows_, w * numCols_,  CV_8UC3);
+        startCopyThreads(w, h, (int)msgs.size());
+      }
+      // copy individual images into the full image
+      // This is a surprisingly slow process and therefore done in parallel
+      for (int i = 0; i < (int)msgs.size(); i++) {
+        copyThreads_[i]->startCopy(msgs[i], frameNum_);
+      }
+      for (int i = 0; i < (int)msgs.size(); i++) {
+        copyThreads_[i]->waitForCopyComplete();
+      }
+      if (writeFrames_ && (frameNum_ % keepRatio_ == 0)) {
+        ROS_INFO_STREAM("wrote frame at time: " << msg0->header.stamp);
+        cv::imwrite(make_file_name(frameBaseName_, frameNum_ / keepRatio_), fullImg_);
+      }
+      frameNum_++;
 
-    if (writeVideo_) {
-      writeVideoFrame(fullImg_, msg0->header);
+      if (writeVideo_) {
+        writeVideoFrame(fullImg_, msg0->header);
+      }
+    } else {
+      frameNum_++;
     }
   }
 
