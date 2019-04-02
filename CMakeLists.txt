@@ -28,3 +28,7 @@ target_link_libraries(decode_bag ${catkin_LIBRARIES}
 add_executable(split_bag src/split_bag.cpp src/split_bag_node.cpp)
 target_link_libraries(split_bag ${catkin_LIBRARIES}
 )
+
+add_executable(decode_frames src/decode_frames.cpp src/decode_frames_node.cpp)
+target_link_libraries(decode_frames ${catkin_LIBRARIES}
+)
