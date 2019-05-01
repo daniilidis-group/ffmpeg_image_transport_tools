@@ -9,6 +9,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>roscpp</depend>
+  <depend>nodelet</depend>
   <depend>image_transport</depend>
   <depend>sensor_msgs</depend>
   <depend>ffmpeg_image_transport</depend>
@@ -17,4 +18,7 @@
   <depend>opencv</depend>
   <depend>rosbag</depend>
   <depend>cv_bridge</depend>
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugin.xml"/>
+  </export>
 </package>

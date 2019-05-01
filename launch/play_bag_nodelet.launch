@@ -1,0 +1,21 @@
+<launch>
+  <arg name="bag"/>
+
+#	launch-prefix="gdb -ex run --args"
+  <node pkg="nodelet" type="nodelet" name="play_bag_nodelet"
+	args="standalone ffmpeg_image_transport_tools/PlayBagNodelet"
+	output="screen">
+    <param name="bag_file" value="$(arg bag)"/>
+    <rosparam param="image_topics">
+      ["/cam_sync/cam0/image_raw/ffmpeg",
+      "/cam_sync/cam1/image_raw/ffmpeg",
+      "/cam_sync/cam2/image_raw/ffmpeg",
+      "/cam_sync/cam3/image_raw/ffmpeg",
+      "/cam_sync/cam4/image_raw/ffmpeg",
+      "/cam_sync/cam5/image_raw/ffmpeg",
+      "/cam_sync/cam6/image_raw/ffmpeg",
+      "/cam_sync/cam7/image_raw/ffmpeg"
+      ]
+    </rosparam>
+  </node>
+</launch>

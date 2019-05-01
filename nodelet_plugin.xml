@@ -1,0 +1,9 @@
+<library path="lib/libplay_bag_nodelet">
+  <class name="ffmpeg_image_transport_tools/PlayBagNodelet"
+         type="ffmpeg_image_transport_tools::PlayBagNodelet"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      play_bag nodelet
+    </description>
+  </class>
+</library>
