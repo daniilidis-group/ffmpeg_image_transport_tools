@@ -3,8 +3,9 @@
  */
 
 #include "ffmpeg_image_transport_tools/play_bag.h"
-#include <rosbag/view.h>
 #include <boost/range/irange.hpp>
+#include <rosbag/view.h>
+#include <rosgraph_msgs/Clock.h>
 
 namespace ffmpeg_image_transport_tools {
   using boost::irange;
@@ -12,12 +13,12 @@ namespace ffmpeg_image_transport_tools {
   PlayBag::Session::Session(const std::string &topic,
                             const ImageTransportPtr &transp,
                             const ImageSyncPtr &sync) :
-    topic_(topic), sync_(sync) {
-    pub_ = transp->advertise(topic + "/synced", 1);
+    topic_(topic + "/ffmpeg"), sync_(sync) {
+    imgPub_ = transp->advertise(topic + "/synced", 1);
   }
 
   void PlayBag::Session::publish(const ImageConstPtr &msg) {
-    pub_.publish(msg);
+    imgPub_.publish(msg);
   }
 
   void PlayBag::Session::callback(const ImageConstPtr &img) {
@@ -43,14 +44,32 @@ namespace ffmpeg_image_transport_tools {
   }
 
   void PlayBag::syncCallback(const std::vector<ImageConstPtr> &msgs) {
-    if (msgs.size() != imageTopics_.size()) {
+    if (msgs.size() != topics_.size()) {
       ROS_WARN("invalid image message!");
       return;
     }
-    for (const auto i: irange(0ul, msgs.size())) {
-      sessions_[imageTopics_[i]]->publish(msgs[i]);
+    const ros::Time t = msgs[0]->header.stamp;
+    // wait for previous message to clear
+    if (waitForAck_) {
+      std::unique_lock<std::mutex> lock(mutex_);
+      if (ackTime_ != ros::Time(0)) {
+        cv_.wait_for(lock, retryTimeout_);
+      }
+      if (ackTime_ != ros::Time(0)) {
+        ROS_WARN_STREAM("play_bag timed out w/o ack, sending anyways");
+      }
     }
-    // TODO: wait here for ack!
+    for (const auto i: irange(0ul, msgs.size())) {
+      sessions_[topics_[i]]->publish(msgs[i]);
+    }
+    rosgraph_msgs::Clock clockMsg;
+    clockMsg.clock = t;
+    clockPub_.publish(clockMsg);
+
+    if (waitForAck_) {
+      std::unique_lock<std::mutex> lock(mutex_);
+      ackTime_ = msgs[0]->header.stamp;
+    }
     frameNum_++;
   }
 
@@ -63,37 +82,68 @@ namespace ffmpeg_image_transport_tools {
       ROS_ERROR("no image topics found!");
       return (false);
     }
+    nh_.param<bool>("wait_for_ack", waitForAck_, true);
+    int retrySeconds;
+    nh_.param<int>("retry_timeout", retrySeconds, 5);
+    retryTimeout_ = std::chrono::seconds(retrySeconds);
+    sub_ = nh_.subscribe("ack", 2, &PlayBag::ackCallback, this);
+    clockPub_ = nh_.advertise<rosgraph_msgs::Clock>("/clock", 1000);
+
+    ROS_INFO_STREAM("initialized, " << (waitForAck_ ? "" : " NOT ")
+                    << "waiting for ack!");
     if (!bagFile.empty()) {
-      processBag(bagFile);
+      openBag(bagFile);
+      playBagThread_ = std::make_shared<std::thread>(&PlayBag::play, this);
     } else {
       ROS_ERROR_STREAM("must specify bag_file!");
     }
     return (true);
   }
+  
+  void PlayBag::ackCallback(const std_msgs::Header::ConstPtr &ackMsg) {
+    if (waitForAck_) {
+      std::unique_lock<std::mutex> lock(mutex_);
+      ackTime_ = ros::Time(0);
+      cv_.notify_all();
+    }
+  }
 
-  void PlayBag::processBag(const std::string &fname) {
-    ROS_INFO_STREAM("opening bag: " << fname);
-    rosbag::Bag bag(fname, rosbag::bagmode::Read);
+  void PlayBag::closeBag() {
+    ROS_INFO_STREAM("total frames: " << frameNum_ );
+    bag_.close();
+    sessions_.clear();
+  }
+
+  void PlayBag::openBag(const std::string &fname) {
     ROS_INFO_STREAM("opening bag (this could take a while): " << fname);
+    bag_.open(fname, rosbag::bagmode::Read);
     ROS_INFO_STREAM("bag opened!");
-    std::vector<std::string> topics = imageTopics_;
-    std::vector<std::vector<std::string>> tpvec = {topics};
+
+    for (const auto tp: imageTopics_) {
+      topics_.push_back(tp + "/ffmpeg");
+    }
+    std::vector<std::vector<std::string>> tpvec = {topics_};
     ImageSync::Callback cb = std::bind(&PlayBag::syncCallback,
                                        this, std::placeholders::_1);
     sync_.reset(new ImageSync(tpvec, cb));
-    for (const auto &topic: topics) {
-      rosbag::View cv(bag, rosbag::TopicQuery({topic}));
+    for (const auto i: irange(0ul, topics_.size())) {
+      const auto &topic = topics_[i];
+      rosbag::View cv(bag_, rosbag::TopicQuery({topic}));
       if (cv.begin() == cv.end()) {
         ROS_WARN_STREAM("cannot find topic: " << topic);
       }
       if (sessions_.count(topic) == 0) {
-        sessions_[topic].reset(new Session(topic, imgTrans_, sync_));
-        ROS_INFO_STREAM("using topic: " << topic);
+        sessions_[topic].reset(
+          new Session(imageTopics_[i], imgTrans_, sync_));
+        ROS_INFO_STREAM("play_bag topic: " << topic);
       } else {
-        ROS_WARN_STREAM("duplicate topic: " << topic);
+        ROS_WARN_STREAM("play_bag dup topic: " << topic);
       }
     }
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
+  }
+
+  void PlayBag::play() {
+    rosbag::View view(bag_, rosbag::TopicQuery(topics_));
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
     for (const rosbag::MessageInstance &m: view) {
@@ -101,21 +151,20 @@ namespace ffmpeg_image_transport_tools {
       if (msg) {
         SessionPtr sess = sessions_[m.getTopic()];
         sess->processMessage(msg);
+        if (cnt++ > perfInterval) {
+          const auto t1 = ros::WallTime::now();
+          ROS_INFO_STREAM("played frames: " << frameNum_ << " fps: " <<
+                          perfInterval / (topics_.size() * (t1-t0).toSec()));
+          cnt = 0;
+          t0 = t1;
+        }
       }
       if (!ros::ok() || (int)frameNum_ > maxNumFrames_) {
         break;
       }
-      if (cnt++ > perfInterval) {
-        const auto t1 = ros::WallTime::now();
-        ROS_INFO_STREAM("wrote frames: " << frameNum_ << " fps: " <<
-                        perfInterval / (topics.size() * (t1-t0).toSec()));
-        cnt = 0;
-        t0 = t1;
-      }
     }
-    ROS_INFO_STREAM("total frames: " << frameNum_ );
-    bag.close();
-    sessions_.clear();
+    closeBag();
+    ROS_INFO_STREAM("play thread exiting!");
   }
-  
+
 }  // namespace
