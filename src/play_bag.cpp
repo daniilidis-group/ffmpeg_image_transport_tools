@@ -105,6 +105,9 @@ namespace ffmpeg_image_transport_tools {
       std::unique_lock<std::mutex> lock(mutex_);
       ackTime_ = ros::Time(0);
       cv_.notify_all();
+      if (ackMsg->frame_id == "FINISHED!") {
+        maxNumFrames_ = 0; // will cause playback to stop
+      }
     }
   }
 

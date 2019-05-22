@@ -7,14 +7,14 @@
 	output="screen">
     <param name="bag_file" value="$(arg bag)"/>
     <rosparam param="image_topics">
-      ["/cam_sync/cam0/image_raw/ffmpeg",
-      "/cam_sync/cam1/image_raw/ffmpeg",
-      "/cam_sync/cam2/image_raw/ffmpeg",
-      "/cam_sync/cam3/image_raw/ffmpeg",
-      "/cam_sync/cam4/image_raw/ffmpeg",
-      "/cam_sync/cam5/image_raw/ffmpeg",
-      "/cam_sync/cam6/image_raw/ffmpeg",
-      "/cam_sync/cam7/image_raw/ffmpeg"
+      ["/cam_sync/cam0/iamge_raw",
+      "/cam_sync/cam1/iamge_raw",
+      "/cam_sync/cam2/iamge_raw",
+      "/cam_sync/cam3/iamge_raw",
+      "/cam_sync/cam4/iamge_raw",
+      "/cam_sync/cam5/iamge_raw",
+      "/cam_sync/cam6/iamge_raw",
+      "/cam_sync/cam7/iamge_raw"
       ]
     </rosparam>
   </node>
