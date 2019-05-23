@@ -9,6 +9,7 @@
 #include <image_transport/image_transport.h>
 #include <flex_sync/sync.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CompressedImage.h>
 #include <rosbag/bag.h>
 #include <ros/ros.h>
 
@@ -26,7 +27,10 @@
 
 namespace ffmpeg_image_transport_tools {
   class PlayBag {
+    using Image = sensor_msgs::Image;
     using ImageConstPtr = sensor_msgs::ImageConstPtr;
+    using CompressedImage = sensor_msgs::CompressedImage;
+    using CompressedImageConstPtr = sensor_msgs::CompressedImageConstPtr;
     using FFMPEGPacket  = ffmpeg_image_transport_msgs::FFMPEGPacket;
     using FFMPEGPacketConstPtr = FFMPEGPacket::ConstPtr;
     using ThreadPtr = std::shared_ptr<std::thread>;
@@ -37,10 +41,13 @@ namespace ffmpeg_image_transport_tools {
     class Session {
     public:
       Session(const std::string &topic,
+              const std::string &transName,
               const ImageTransportPtr &trans,
               const ImageSyncPtr &sync);
       void callback(const ImageConstPtr &img);
       void processMessage(const FFMPEGPacketConstPtr &msg);
+      void processMessage(const ImageConstPtr &msg);
+      void processMessage(const CompressedImageConstPtr &msg);
       void publish(const ImageConstPtr &msg);
     private:
       // --------- variables
@@ -67,6 +74,7 @@ namespace ffmpeg_image_transport_tools {
     rosbag::Bag   bag_;
     ImageSyncPtr  sync_;
     SessionMap    sessions_;
+    std::string   transportName_;
     unsigned int  frameNum_{0};
     int           maxNumFrames_;
     ros::Time     ackTime_{0};

@@ -6,14 +6,20 @@
 #include <boost/range/irange.hpp>
 #include <rosbag/view.h>
 #include <rosgraph_msgs/Clock.h>
+#include <cv_bridge/cv_bridge.h>
 
 namespace ffmpeg_image_transport_tools {
   using boost::irange;
-  
+
+  static std::string add_slash(const std::string &transp) {
+    return (transp.empty() ? transp: ("/" + transp));
+  }
+
   PlayBag::Session::Session(const std::string &topic,
+                            const std::string &transName,
                             const ImageTransportPtr &transp,
                             const ImageSyncPtr &sync) :
-    topic_(topic + "/ffmpeg"), sync_(sync) {
+    topic_(topic + add_slash(transName)), sync_(sync) {
     imgPub_ = transp->advertise(topic + "/synced", 1);
   }
 
@@ -38,6 +44,22 @@ namespace ffmpeg_image_transport_tools {
     // this will produce a callback to callback() when
     // decoding has been successful
     decoder_.decodePacket(msg);
+  }
+  
+  void PlayBag::Session::processMessage(const ImageConstPtr &msg) {
+    sync_->process(topic_, msg);
+  }
+
+  void PlayBag::Session::processMessage(const CompressedImageConstPtr &msg) {
+    // first convert to Mono8, i.e. just extract the raw bytes.
+    cv::Mat im1 = cv_bridge::toCvCopy(
+      msg, sensor_msgs::image_encodings::MONO8)->image;
+    cv::Mat im;
+    // now debayer
+    cv::cvtColor(im1, im, cv::COLOR_BayerBG2BGR);
+    ImageConstPtr img =
+      cv_bridge::CvImage(msg->header, "bgr8", im).toImageMsg();
+    sync_->process(topic_, img);
   }
 
   PlayBag::PlayBag(const ros::NodeHandle& pnh) :  nh_(pnh) {
@@ -75,6 +97,7 @@ namespace ffmpeg_image_transport_tools {
 
   bool PlayBag::initialize() {
     std::string bagFile;
+    nh_.param<std::string>("transport", transportName_, "ffmpeg");
     nh_.param<std::string>("bag_file",  bagFile,  "");
     nh_.param<int>("max_num_frames",  maxNumFrames_,  1000000000);
     imgTrans_.reset(new image_transport::ImageTransport(nh_));
@@ -123,7 +146,7 @@ namespace ffmpeg_image_transport_tools {
     ROS_INFO_STREAM("bag opened!");
 
     for (const auto tp: imageTopics_) {
-      topics_.push_back(tp + "/ffmpeg");
+      topics_.push_back(tp + add_slash(transportName_));
     }
     std::vector<std::vector<std::string>> tpvec = {topics_};
     ImageSync::Callback cb = std::bind(&PlayBag::syncCallback,
@@ -137,7 +160,8 @@ namespace ffmpeg_image_transport_tools {
       }
       if (sessions_.count(topic) == 0) {
         sessions_[topic].reset(
-          new Session(imageTopics_[i], imgTrans_, sync_));
+          new Session(imageTopics_[i], transportName_,
+                      imgTrans_, sync_));
         ROS_INFO_STREAM("play_bag topic: " << topic);
       } else {
         ROS_WARN_STREAM("play_bag dup topic: " << topic);
@@ -150,10 +174,14 @@ namespace ffmpeg_image_transport_tools {
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
     for (const rosbag::MessageInstance &m: view) {
-      FFMPEGPacketConstPtr msg = m.instantiate<FFMPEGPacket>();
-      if (msg) {
+      FFMPEGPacketConstPtr    msgFF   = m.instantiate<FFMPEGPacket>();
+      ImageConstPtr           msgImg  = m.instantiate<Image>();
+      CompressedImageConstPtr msgComp = m.instantiate<CompressedImage>();
+      if (msgFF || msgImg || msgComp) {
         SessionPtr sess = sessions_[m.getTopic()];
-        sess->processMessage(msg);
+        if (msgFF)   sess->processMessage(msgFF);
+        if (msgImg)  sess->processMessage(msgImg);
+        if (msgComp) sess->processMessage(msgComp);
         if (cnt++ > perfInterval) {
           const auto t1 = ros::WallTime::now();
           ROS_INFO_STREAM("played frames: " << frameNum_ << " fps: " <<

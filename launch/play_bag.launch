@@ -1,20 +1,10 @@
 <launch>
   <arg name="bag"/>
-
+  <arg name="transport" default="/ffmpeg"/>
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="play_bag_node"
 	name="play_bag" output="screen">
     <param name="bag_file" value="$(arg bag)"/>
-    <rosparam param="image_topics">
-      ["/cam_sync/cam0/image_raw",
-      "/cam_sync/cam1/image_raw",
-      "/cam_sync/cam2/image_raw",
-      "/cam_sync/cam3/image_raw",
-      "/cam_sync/cam4/image_raw",
-      "/cam_sync/cam5/image_raw",
-      "/cam_sync/cam6/image_raw",
-      "/cam_sync/cam7/image_raw"
-      ]
-    </rosparam>
+    <param name="transport" value="$(arg transport)"/>
   </node>
 </launch>
