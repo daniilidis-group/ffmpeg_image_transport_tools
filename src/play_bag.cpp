@@ -21,6 +21,51 @@ namespace ffmpeg_image_transport_tools {
                             const ImageSyncPtr &sync) :
     topic_(topic + add_slash(transName)), sync_(sync) {
     imgPub_ = transp->advertise(topic + "/synced", 1);
+    thread_ = std::make_shared<std::thread>(&PlayBag::Session::decodeThread,
+                                            this);
+  }
+
+  void PlayBag::Session::join() {
+    if (thread_) {
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        keepRunning_ = false;
+        cv_.notify_all();
+      }
+      thread_->join();
+    }
+  }
+
+  void PlayBag::Session::decodeThread() {
+    while (keepRunning_) {
+      FFMPEGPacketConstPtr msg;
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        while (queue_.empty() && keepRunning_) {
+          cv_.wait_for(lock, std::chrono::seconds(1));
+        }
+        if (!queue_.empty()) {
+          msg = queue_.front();
+          queue_.pop();
+          cv_.notify_all();
+        }
+      }
+      if (msg) {
+        // not holding the lock while processing...
+        processMessage(msg);
+      }
+    }
+  }
+
+  void PlayBag::Session::addToQueue(FFMPEGPacketConstPtr &msg) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    const int MAX_QUEUE_SIZE(3);
+    // block if too many are in the queue already
+    while (queue_.size() >= MAX_QUEUE_SIZE) {
+      cv_.wait(lock);
+    }
+    queue_.push(msg);
+    cv_.notify_all();
   }
 
   void PlayBag::Session::publish(const ImageConstPtr &msg) {
@@ -137,6 +182,10 @@ namespace ffmpeg_image_transport_tools {
   void PlayBag::closeBag() {
     ROS_INFO_STREAM("total frames: " << frameNum_ );
     bag_.close();
+    cv_.notify_all(); // try to shake loose any threads stuck in sync
+    for (auto &s: sessions_) {
+      s.second->join();
+    }
     sessions_.clear();
   }
 
@@ -179,7 +228,7 @@ namespace ffmpeg_image_transport_tools {
       CompressedImageConstPtr msgComp = m.instantiate<CompressedImage>();
       if (msgFF || msgImg || msgComp) {
         SessionPtr sess = sessions_[m.getTopic()];
-        if (msgFF)   sess->processMessage(msgFF);
+        if (msgFF)   sess->addToQueue(msgFF);
         if (msgImg)  sess->processMessage(msgImg);
         if (msgComp) sess->processMessage(msgComp);
         if (cnt++ > perfInterval) {
@@ -195,7 +244,7 @@ namespace ffmpeg_image_transport_tools {
       }
     }
     closeBag();
-    ROS_INFO_STREAM("play thread exiting!");
+    ROS_INFO_STREAM("finished playing bag!");
   }
 
 }  // namespace

@@ -15,15 +15,15 @@
 
 #include <opencv2/core/core.hpp>
 
-#include <boost/thread.hpp>
-
 #include <fstream>
 #include <vector>
 #include <thread>
 #include <unordered_map>
 #include <memory>
+#include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <queue>
 
 namespace ffmpeg_image_transport_tools {
   class PlayBag {
@@ -49,12 +49,20 @@ namespace ffmpeg_image_transport_tools {
       void processMessage(const ImageConstPtr &msg);
       void processMessage(const CompressedImageConstPtr &msg);
       void publish(const ImageConstPtr &msg);
+      void decodeThread();
+      void join();
+      void addToQueue(FFMPEGPacketConstPtr &msg);
     private:
       // --------- variables
       std::string             topic_;
       ImageSyncPtr            sync_;
       ffmpeg_image_transport::FFMPEGDecoder decoder_;
       image_transport::Publisher   imgPub_;
+      bool                    keepRunning_{true};
+      ThreadPtr               thread_;
+      std::mutex              mutex_;
+      std::queue<FFMPEGPacketConstPtr> queue_;
+      std::condition_variable cv_;
     };
     
     PlayBag(const ros::NodeHandle& pnh);
