@@ -205,7 +205,7 @@ namespace ffmpeg_image_transport_tools {
     std::vector<std::vector<std::string>> tpvec = {topics_};
     ImageSync::Callback cb = std::bind(&PlayBag::syncCallback,
                                        this, std::placeholders::_1);
-    sync_.reset(new ImageSync(tpvec, cb));
+    sync_.reset(new ImageSync(tpvec, cb, 30));
     for (const auto i: irange(0ul, topics_.size())) {
       const auto &topic = topics_[i];
       rosbag::View cv(bag_, rosbag::TopicQuery({topic}),
@@ -229,6 +229,7 @@ namespace ffmpeg_image_transport_tools {
                       startTime_, endTime_);
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
+    int comp(0);
     for (const rosbag::MessageInstance &m: view) {
       FFMPEGPacketConstPtr    msgFF   = m.instantiate<FFMPEGPacket>();
       ImageConstPtr           msgImg  = m.instantiate<Image>();
@@ -237,11 +238,15 @@ namespace ffmpeg_image_transport_tools {
         SessionPtr sess = sessions_[m.getTopic()];
         if (msgFF)   sess->addToQueue(msgFF);
         if (msgImg)  sess->processMessage(msgImg);
-        if (msgComp) sess->processMessage(msgComp);
+        if (msgComp) {
+	  sess->processMessage(msgComp);
+	  comp++;
+	}
         if (cnt++ > perfInterval) {
           const auto t1 = ros::WallTime::now();
           ROS_INFO_STREAM("played frames: " << frameNum_ << " fps: " <<
                           perfInterval / (topics_.size() * (t1-t0).toSec()));
+	  ROS_INFO_STREAM("comp: " << comp);
           cnt = 0;
           t0 = t1;
         }
