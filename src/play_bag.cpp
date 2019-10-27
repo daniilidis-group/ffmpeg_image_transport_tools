@@ -145,6 +145,11 @@ namespace ffmpeg_image_transport_tools {
     nh_.param<std::string>("transport", transportName_, "ffmpeg");
     nh_.param<std::string>("bag_file",  bagFile,  "");
     nh_.param<int>("max_num_frames",  maxNumFrames_,  1000000000);
+    double startTime, endTime;
+    nh_.param<double>("start_time", startTime, -1.0);
+    nh_.param<double>("end_time", endTime, -1.0);
+    startTime_ = startTime < 0 ? ros::TIME_MIN : ros::Time(startTime);
+    endTime_ = endTime < 0 ? ros::TIME_MAX : ros::Time(endTime);
     imgTrans_.reset(new image_transport::ImageTransport(nh_));
     if (!nh_.getParam("image_topics", imageTopics_)) {
       ROS_ERROR("no image topics found!");
@@ -203,7 +208,8 @@ namespace ffmpeg_image_transport_tools {
     sync_.reset(new ImageSync(tpvec, cb));
     for (const auto i: irange(0ul, topics_.size())) {
       const auto &topic = topics_[i];
-      rosbag::View cv(bag_, rosbag::TopicQuery({topic}));
+      rosbag::View cv(bag_, rosbag::TopicQuery({topic}),
+                      startTime_, endTime_);
       if (cv.begin() == cv.end()) {
         ROS_WARN_STREAM("cannot find topic: " << topic);
       }
@@ -219,7 +225,8 @@ namespace ffmpeg_image_transport_tools {
   }
 
   void PlayBag::play() {
-    rosbag::View view(bag_, rosbag::TopicQuery(topics_));
+    rosbag::View view(bag_, rosbag::TopicQuery(topics_),
+                      startTime_, endTime_);
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
     for (const rosbag::MessageInstance &m: view) {
@@ -239,7 +246,12 @@ namespace ffmpeg_image_transport_tools {
           t0 = t1;
         }
       }
-      if (!ros::ok() || (int)frameNum_ > maxNumFrames_) {
+      if (!ros::ok()) {
+        ROS_INFO_STREAM("play_bag quiting due to ros signal");
+        break;
+      }
+      if ((int)frameNum_ > maxNumFrames_) {
+        ROS_INFO_STREAM("play_bag reached max num frames: " << maxNumFrames_ );
         break;
       }
     }

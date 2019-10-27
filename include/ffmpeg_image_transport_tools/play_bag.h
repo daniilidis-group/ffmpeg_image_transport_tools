@@ -94,6 +94,8 @@ namespace ffmpeg_image_transport_tools {
     ros::Publisher           clockPub_;
     std::vector<std::string> imageTopics_;
     std::vector<std::string> topics_;
+    ros::Time                startTime_;
+    ros::Time                endTime_;
     std::shared_ptr<image_transport::ImageTransport> imgTrans_;
     ThreadPtr     playBagThread_;
   };
