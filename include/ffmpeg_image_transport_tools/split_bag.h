@@ -22,13 +22,15 @@ namespace ffmpeg_image_transport_tools {
     class Session {
     public:
       Session(const std::string &topic, const std::string &base,
-              unsigned int idx);
+              bool writeTimeStamp, unsigned int idx);
       ~Session();
       void process(const FFMPEGPacketConstPtr &msg);
     private:
       // --------- variables
       std::string             topic_;
       std::ofstream           rawStream_;
+      std::ofstream           ts_;
+      unsigned int            frameCnt_{0};
     };
     
     SplitBag(const ros::NodeHandle& pnh);
@@ -46,6 +48,7 @@ namespace ffmpeg_image_transport_tools {
     std::string   outFileBase_;
     unsigned int  frameNum_{0};
     int           maxNumFrames_;
+    bool          writeTimeStamps_;
     std::vector<std::string> imageTopics_;
   };
 
