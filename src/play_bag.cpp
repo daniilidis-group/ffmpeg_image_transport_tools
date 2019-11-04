@@ -222,7 +222,6 @@ namespace ffmpeg_image_transport_tools {
     rosbag::View view(bag_, rosbag::TopicQuery(topics_));
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
-    int comp(0);
     for (const rosbag::MessageInstance &m: view) {
       FFMPEGPacketConstPtr    msgFF   = m.instantiate<FFMPEGPacket>();
       ImageConstPtr           msgImg  = m.instantiate<Image>();
@@ -232,14 +231,12 @@ namespace ffmpeg_image_transport_tools {
         if (msgFF)   sess->addToQueue(msgFF);
         if (msgImg)  sess->processMessage(msgImg);
         if (msgComp) {
-	  sess->processMessage(msgComp);
-	  comp++;
-	}
+          sess->processMessage(msgComp);
+        }
         if (cnt++ > perfInterval) {
           const auto t1 = ros::WallTime::now();
           ROS_INFO_STREAM("played frames: " << frameNum_ << " fps: " <<
                           perfInterval / (topics_.size() * (t1-t0).toSec()));
-	  ROS_INFO_STREAM("comp: " << comp);
           cnt = 0;
           t0 = t1;
         }
