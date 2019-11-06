@@ -39,7 +39,7 @@ namespace ffmpeg_image_transport_tools {
   private:
     void makeSessions(rosbag::Bag *bag);
     void processBag(const std::string &fname);
-
+    void convertToMP4() const;
     // ------------------------ variables --------
     ros::NodeHandle   nh_;
     typedef std::shared_ptr<Session> SessionPtr;
@@ -49,6 +49,7 @@ namespace ffmpeg_image_transport_tools {
     unsigned int  frameNum_{0};
     int           maxNumFrames_;
     bool          writeTimeStamps_;
+    int           videoRate_;
     std::vector<std::string> imageTopics_;
   };
 

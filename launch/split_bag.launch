@@ -3,6 +3,7 @@
   <arg name="bag"/>
   <arg name="out_file_base" default="video_"/>
   <arg name="write_time_stamps" default="false"/>
+  <arg name="convert_to_mp4" default="false"/>
 
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="split_bag"
@@ -23,5 +24,6 @@
       ]
     </rosparam>
     <param name="write_time_stamps" value="$(arg write_time_stamps)"/>
+    <param name="convert_to_mp4" value="$(arg convert_to_mp4)"/>
   </node>
 </launch>
