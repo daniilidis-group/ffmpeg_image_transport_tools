@@ -8,14 +8,25 @@
 
 #include <boost/range/irange.hpp>
 #include <climits>
+#include <bits/stdc++.h>
+#include <sstream>
 
 namespace ffmpeg_image_transport_tools {
   using boost::irange;
   SplitBag::Session::Session(const std::string &topic,
                              const std::string &base,
-                             unsigned int idx) :
+                             bool writeTimeStamp, unsigned int idx) :
     topic_(topic) {
     std::string fname = base + std::to_string(idx) + ".h265";
+    std::string tsname = base + std::to_string(idx) + "_ts.txt";
+
+    if (writeTimeStamp) {
+      ts_.open(tsname, std::ios::out);
+      if (!ts_.is_open()) {
+        ROS_ERROR_STREAM("cannot open file: " << tsname);
+        throw std::runtime_error("cannot open file " + tsname);
+      }
+    }
     rawStream_.open(fname, std::ios::out | std::ios::binary);
     if (!rawStream_.is_open()) {
       ROS_ERROR_STREAM("cannot open file: " << fname);
@@ -25,14 +36,25 @@ namespace ffmpeg_image_transport_tools {
 
   void
   SplitBag::Session::process(const FFMPEGPacketConstPtr &msg) {
+    if (msg->flags == 0 && frameCnt_ == 0) {
+      // wait for first keyframe...
+      return;
+    }
     if (!rawStream_.write((const char *)(&msg->data[0]), msg->data.size())) {
       ROS_ERROR_STREAM("write failed for topic: " << topic_);
       throw std::runtime_error("write failed!");
     }
+    if (ts_.is_open()) {
+      ts_ << frameCnt_ << " " << msg->header.stamp << std::endl;
+    }
+    frameCnt_++;
   }
 
   SplitBag::Session::~Session() {
     rawStream_.close();
+    if (ts_.is_open()) {
+      ts_.close();
+    }
   }
 
   SplitBag::SplitBag(const ros::NodeHandle& pnh) :  nh_(pnh) {
@@ -49,16 +71,36 @@ namespace ffmpeg_image_transport_tools {
     }
     nh_.param<std::string>("out_file_base",  outFileBase_,  "video_");
     nh_.param<int>("max_num_frames",  maxNumFrames_, INT_MAX);
+    nh_.param<bool>("write_time_stamps",  writeTimeStamps_, false);
+    nh_.param<int>("video_rate",  videoRate_, 40);
 
     std::string bagFile;
     nh_.param<std::string>("bag_file",  bagFile,  "");
     if (!bagFile.empty()) {
       processBag(bagFile);
+      bool convert;
+      nh_.param<bool>("convert_to_mp4",  convert, false);
+      if (convert) {
+        convertToMP4();
+      }
     } else {
       ROS_ERROR_STREAM("must specify bag_file!");
     }
     ros::shutdown();
     return (true);
+  }
+
+  void SplitBag::convertToMP4() const {
+    for (const auto &idx: irange(0ul, imageTopics_.size())) {
+      std::string iname = outFileBase_ + std::to_string(idx) + ".h265";
+      std::string oname = outFileBase_ + std::to_string(idx) + ".mp4";
+      std::stringstream ss;
+      ss << "ffmpeg -y -r " << videoRate_ << " -i " << iname
+         << " -c:v copy " << oname;
+      std::cout << "issuing string: " << ss.str() << std::endl;
+      std::system(ss.str().c_str());
+      std::system(("rm " + iname).c_str());
+    }
   }
 
 
@@ -73,7 +115,7 @@ namespace ffmpeg_image_transport_tools {
       }
       if (sessions_.count(topic) == 0) {
         sessions_[topic].reset(
-          new Session(topic, outFileBase_, topic_idx));
+          new Session(topic, outFileBase_, writeTimeStamps_, topic_idx));
       } else {
         ROS_WARN_STREAM("duplicate topic: " << topic);
       }
@@ -104,7 +146,7 @@ namespace ffmpeg_image_transport_tools {
       if (cnt++ > perfInterval) {
         const auto t1 = ros::WallTime::now();
         ROS_INFO_STREAM("wrote frames: " << frameNum_ << " fps: " <<
-                        perfInterval / (imageTopics_.size() * (t1-t0).toSec()));
+                        perfInterval/(imageTopics_.size() * (t1-t0).toSec()));
         cnt = 0;
         t0 = t1;
       }
