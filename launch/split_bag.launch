@@ -4,6 +4,8 @@
   <arg name="out_file_base" default="video_"/>
   <arg name="write_time_stamps" default="false"/>
   <arg name="convert_to_mp4" default="false"/>
+  <arg name="start_time" default="0.0"/>
+  <arg name="duration" default="1000000.0"/>
 
   <!-- nodes -->
   <node pkg="ffmpeg_image_transport_tools" type="split_bag"
@@ -12,6 +14,9 @@
     <param name="out_file_base" type="string" value="$(arg out_file_base)"/>
     <!-- will stop after max_num_frames -->
     <param name="max_num_frames" type="int" value="1000000000"/>
+    <param name="start_time" type="double" value="$(arg start_time)"/>
+    <param name="duration" type="double" value="$(arg duration)"/>
+
     <rosparam param="image_topics">
       ["/cam_sync/cam0/image_raw/ffmpeg",
       "/cam_sync/cam1/image_raw/ffmpeg",

@@ -73,11 +73,13 @@ namespace ffmpeg_image_transport_tools {
     nh_.param<int>("max_num_frames",  maxNumFrames_, INT_MAX);
     nh_.param<bool>("write_time_stamps",  writeTimeStamps_, false);
     nh_.param<int>("video_rate",  videoRate_, 40);
-
+    double start_time, duration;
+    nh_.param<double>("start_time", start_time, 0);
+    nh_.param<double>("duration", duration, -1.0);
     std::string bagFile;
     nh_.param<std::string>("bag_file",  bagFile,  "");
     if (!bagFile.empty()) {
-      processBag(bagFile);
+      processBag(bagFile, start_time, duration);
       bool convert;
       nh_.param<bool>("convert_to_mp4",  convert, false);
       if (convert) {
@@ -104,10 +106,11 @@ namespace ffmpeg_image_transport_tools {
   }
 
 
-  void SplitBag::makeSessions(rosbag::Bag *bag) {
+  void SplitBag::makeSessions(rosbag::Bag *bag, const ros::Time &t_start,
+                              const ros::Time &t_end) {
     for (const auto &topic_idx: irange(0ul, imageTopics_.size())) {
       const auto &topic = imageTopics_[topic_idx];
-      rosbag::View cv(*bag, rosbag::TopicQuery({topic}));
+      rosbag::View cv(*bag, rosbag::TopicQuery({topic}), t_start, t_end);
       if (cv.begin() == cv.end()) {
         ROS_WARN_STREAM("cannot find topic: " << topic);
       } else {
@@ -123,14 +126,19 @@ namespace ffmpeg_image_transport_tools {
   }
 
 
-  void SplitBag::processBag(const std::string &fname) {
-    ROS_INFO_STREAM("playing from file: " << fname);
+  void SplitBag::processBag(const std::string &fname,
+                            double start_time, double duration) {
+    ROS_INFO_STREAM("processing file: " << fname);
     rosbag::Bag bag;
     bag.open(fname, rosbag::bagmode::Read);
+    ros::Time t_start =
+      rosbag::View(bag).getBeginTime() + ros::Duration(start_time);
+    ros::Time t_end =
+      duration >= 0 ? t_start + ros::Duration(duration) : ros::TIME_MAX;
 
-    makeSessions(&bag);
+    makeSessions(&bag, t_start, t_end);
     
-    rosbag::View view(bag, rosbag::TopicQuery(imageTopics_));
+    rosbag::View view(bag, rosbag::TopicQuery(imageTopics_), t_start, t_end);
     auto t0 = ros::WallTime::now();
     int cnt(0), perfInterval(500);
     for (const rosbag::MessageInstance &m: view) {

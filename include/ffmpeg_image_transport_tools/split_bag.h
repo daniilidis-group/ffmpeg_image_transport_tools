@@ -37,8 +37,13 @@ namespace ffmpeg_image_transport_tools {
     ~SplitBag();
     bool initialize();
   private:
-    void makeSessions(rosbag::Bag *bag);
-    void processBag(const std::string &fname);
+    void makeSessions(rosbag::Bag *bag,
+                      const ros::Time &t_start,
+                      const ros::Time &t_end);
+
+    void processBag(const std::string &fname,
+                    double start_time, double duration);
+
     void convertToMP4() const;
     // ------------------------ variables --------
     ros::NodeHandle   nh_;
