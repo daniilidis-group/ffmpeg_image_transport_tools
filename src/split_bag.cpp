@@ -100,8 +100,14 @@ namespace ffmpeg_image_transport_tools {
       ss << "ffmpeg -y -r " << videoRate_ << " -i " << iname
          << " -c:v copy " << oname;
       std::cout << "issuing string: " << ss.str() << std::endl;
-      std::system(ss.str().c_str());
-      std::system(("rm " + iname).c_str());
+      int rc = std::system(ss.str().c_str());
+      if (rc == -1) {
+        std::cerr << "error running ffmpeg: " << ss.str() << std::endl;
+      }
+      rc = std::system(("rm " + iname).c_str());
+      if (rc == -1) {
+        std::cerr << "error removing file: " << iname << std::endl;
+      }
     }
   }
 
