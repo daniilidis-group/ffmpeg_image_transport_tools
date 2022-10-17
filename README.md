@@ -30,8 +30,6 @@ which pulls the video(s) out of the bag and splits them into one stream for each
 This should produce files ``video_*.h265``, one for each camera, which again you can turn into
 a mp4 file using ffmpeg.
 
-	
+## License
 
-
-
-
+This software is issued under the Apache License Version 2.0.
